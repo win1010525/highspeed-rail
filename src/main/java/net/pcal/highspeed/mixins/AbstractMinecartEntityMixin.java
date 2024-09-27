@@ -1,5 +1,4 @@
 package net.pcal.highspeed.mixins;
-
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -9,7 +8,6 @@ import net.minecraft.world.level.block.BaseRailBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.RailShape;
 import net.minecraft.world.phys.Vec3;
-import net.pcal.highspeed.HighspeedClientService;
 import net.pcal.highspeed.HighspeedService;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -64,6 +62,16 @@ public abstract class AbstractMinecartEntityMixin {
                 currentPos.getZ() + Mth.sign(v.z())
         );
         final BlockState nextState = minecart.level().getBlockState(nextPos);
+        if (railShape.isAscending()
+                && !level.getBlockState(new BlockPos(Mth.floor(this.getX()), Mth.floor(this.getY()), Mth.floor(this.getZ()))).is(BlockTags.RAILS)
+                && !level.getBlockState(new BlockPos(Mth.floor(this.getX()), Mth.floor(this.getY() - 1.), Mth.floor(this.getZ()))).is(BlockTags.RAILS)) {
+
+            if (level.getBlockState(new BlockPos(Mth.floor(this.getX()), Mth.floor(this.getY() - 2.), Mth.floor(this.getZ()))).is(BlockTags.RAILS)) {
+                this.setPos(this.getX(), this.getY() - 1, this.getZ());
+            } else if (level.getBlockState(new BlockPos(Mth.floor(this.getX()), Mth.floor(this.getY() - 3.), Mth.floor(this.getZ()))).is(BlockTags.RAILS)) {
+                this.setPos(this.getX(), this.getY() - 2, this.getZ());
+            }
+        }
         if (nextState.getBlock() instanceof BaseRailBlock rail) {
             final RailShape shape = nextState.getValue(rail.getShapeProperty());
             if (shape == RailShape.NORTH_EAST || shape == RailShape.NORTH_WEST || shape == RailShape.SOUTH_EAST || shape == RailShape.SOUTH_WEST) {
@@ -91,39 +99,6 @@ public abstract class AbstractMinecartEntityMixin {
                     Mth.clamp(vel.z, -smaller, smaller)));
         }
         lastMaxSpeed = currentMaxSpeed;
-    }
-
-    private void updateSpeedometer() {
-        final HighspeedService service = HighspeedService.getInstance();
-        if (!service.isSpeedometerEnabled()) return;
-        final AbstractMinecart minecart = (AbstractMinecart) (Object) this;
-        if (!minecart.level().isClientSide) return;
-        final HighspeedClientService client = service.getClientService();
-        if (!client.isPlayerRiding(minecart)) return;
-        final double override = getModifiedMaxSpeed();
-        final Vec3 vel = minecart.getDeltaMovement();
-        final Vec3 nominalVelocity = new Vec3(Mth.clamp(vel.x, -override, override), 0.0, Mth.clamp(vel.z, -override, override));
-        final Double nominalSpeed = (nominalVelocity.horizontalDistance() * 20);
-        final String display;
-        if (!HighspeedService.getInstance().isSpeedometerTrueSpeedEnabled()) {
-            display = String.format("| %.2f bps |", nominalSpeed);
-        } else {
-            final double trueSpeed;
-            if (this.lastSpeedPos == null) {
-                trueSpeed = 0.0;
-                lastSpeedPos = client.getPlayerPos();
-                lastSpeedTime = System.currentTimeMillis();
-            } else {
-                final long now = System.currentTimeMillis();
-                final Vec3 playerPos = client.getPlayerPos();
-                final Vec3 vector = playerPos.subtract(this.lastSpeedPos);
-                trueSpeed = vector.horizontalDistance() * 1000 / ((now - lastSpeedTime));
-                this.lastSpeedPos = playerPos;
-                lastSpeedTime = now;
-            }
-            display = String.format("| %.2f bps %.2f  |", nominalSpeed, trueSpeed);
-        }
-        client.sendPlayerMessage(display);
     }
 }
 
