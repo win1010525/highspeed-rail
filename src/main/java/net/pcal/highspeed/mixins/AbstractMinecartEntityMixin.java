@@ -21,7 +21,7 @@ public abstract class AbstractMinecartEntityMixin {
 
     private static final double VANILLA_MAX_SPEED = 8.0 / 20.0;
     private static final double SQRT_TWO = 1.414213;
-
+    Level level = this.level();
     private BlockPos lastPos = null;
     private double currentMaxSpeed = VANILLA_MAX_SPEED;
     private double lastMaxSpeed = VANILLA_MAX_SPEED;
